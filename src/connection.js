@@ -204,7 +204,15 @@ async function startConnection(options = {}) {
   let usePairingCode = false;
   let pairingNumber = "";
 
-  if (!state.creds.registered) {
+  const credsFile = path.join(sessionPath, "creds.json");
+  let hasSession = false;
+  try {
+    if (fs.existsSync(credsFile) && fs.statSync(credsFile).size > 50) {
+      hasSession = true;
+    }
+  } catch {}
+
+  if (!hasSession && !state.creds.registered) {
     const B = colors.chalk.hex("#0EA5E9").bold;
     const G = colors.chalk.hex("#10B981");
     const Y = colors.chalk.hex("#F59E0B");
@@ -411,6 +419,12 @@ async function startConnection(options = {}) {
         colors.logger.info("whatsapp", "restart bot untuk login ulang");
         connectionState.reconnectAttempts = 0;
         process.exit(0);
+        return;
+      }
+
+      if (sc === 515) {
+        colors.logger.info("whatsapp", "restart koneksi diminta WA — reconnect dalam 5 detik...");
+        setTimeout(() => startConnection(options), 5000);
         return;
       }
 
