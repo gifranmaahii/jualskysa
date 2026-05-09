@@ -227,14 +227,13 @@ async function startConnection(options = {}) {
     );
     if (loginChoice.trim() === "2") {
       usePairingCode = true;
-      if (!pairingNumber) {
-        console.log("");
-        pairingNumber = await askQuestion(
-          colors.chalk.hex("#10B981").bold(
-            "  ➤ Nomor WhatsApp (cth: 6281234567890): ",
-          ),
-        );
-      }
+      console.log("");
+      pairingNumber = await askQuestion(
+        colors.chalk.hex("#10B981").bold(
+          "  ➤ Nomor WhatsApp (cth: 6281234567890): ",
+        ),
+      );
+      pairingNumber = pairingNumber.replace(/[^0-9]/g, "");
     } else {
       usePairingCode = false;
     }
@@ -376,11 +375,18 @@ async function startConnection(options = {}) {
       const statusMsg = STATUS_MESSAGES[sc] || `❔ Unknown (kode: ${sc})`;
       colors.logger.warn("whatsapp", `terputus — ${statusMsg}`);
       if (sc === DisconnectReason.loggedOut || sc === 401) {
-        colors.logger.error(
-          "whatsapp",
-          "sesi habis — hapus folder storage lalu restart",
-        );
+        colors.logger.error("whatsapp", "sesi habis — menghapus session otomatis...");
+        try {
+          if (fs.existsSync(sessionPath)) {
+            fs.rmSync(sessionPath, { recursive: true, force: true });
+            colors.logger.success("whatsapp", `folder session '${sessionPath}' berhasil dihapus`);
+          }
+        } catch (e) {
+          colors.logger.error("whatsapp", `gagal hapus session: ${e.message}`);
+        }
+        colors.logger.info("whatsapp", "restart bot untuk login ulang");
         connectionState.reconnectAttempts = 0;
+        process.exit(0);
         return;
       }
 
