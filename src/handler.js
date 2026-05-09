@@ -8,10 +8,6 @@ import {
   pluginStore,
   getAllCommandNames,
 } from "./lib/ourin-plugins.js";
-import {
-  findSimilarCommands,
-  formatSuggestionMessage,
-} from "./lib/ourin-similarity.js";
 import { getDatabase } from "./lib/ourin-database.js";
 import {
   formatUptime,
@@ -30,7 +26,6 @@ import {
   savePersistentCache,
   getLidCacheSize,
 } from "./lib/ourin-lid.js";
-import { hasActiveSession, getSession } from "./lib/ourin-game-data.js";
 import {
   levenshtein,
   formatAfkDuration,
@@ -51,20 +46,42 @@ import {
   getCachedGroup,
   getCachedSetting,
 } from "./lib/ourin-performance.js";
-import {
-  isJadibotOwner,
-  isJadibotPremium,
-  loadJadibotDb,
-} from "./lib/ourin-jadibot-database.js";
-import { getActiveJadibots } from "./lib/ourin-jadibot-manager.js";
 import { handleCommand as handleCaseCommand } from "../case/ourin.js";
 import { RateLimiterMemory } from "rate-limiter-flexible";
-import { games as ourinGames } from "./lib/ourin-games.js";
 import fs from "fs";
 import path from "path";
 import { exec } from "child_process";
 import axios from "axios";
 import * as timeHelper from "./lib/ourin-time.js";
+
+let findSimilarCommands = null, formatSuggestionMessage = null;
+try {
+  const _sim = await import("./lib/ourin-similarity.js");
+  findSimilarCommands = _sim.findSimilarCommands;
+  formatSuggestionMessage = _sim.formatSuggestionMessage;
+} catch {}
+let hasActiveSession = null, getSession = null;
+try {
+  const _gd = await import("./lib/ourin-game-data.js");
+  hasActiveSession = _gd.hasActiveSession;
+  getSession = _gd.getSession;
+} catch {}
+let isJadibotOwner = null, isJadibotPremium = null, loadJadibotDb = null, getActiveJadibots = null;
+try {
+  const _jdb = await import("./lib/ourin-jadibot-database.js");
+  isJadibotOwner = _jdb.isJadibotOwner;
+  isJadibotPremium = _jdb.isJadibotPremium;
+  loadJadibotDb = _jdb.loadJadibotDb;
+} catch {}
+try {
+  const _jm = await import("./lib/ourin-jadibot-manager.js");
+  getActiveJadibots = _jm.getActiveJadibots;
+} catch {}
+let ourinGames = null;
+try {
+  const _games = await import("./lib/ourin-games.js");
+  ourinGames = _games.games;
+} catch {}
 const safe = (fn) => {
   try {
     return fn();

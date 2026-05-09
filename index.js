@@ -18,9 +18,7 @@ import {
 } from "./src/lib/ourin-scheduler.js";
 import { startAutoBackup } from "./src/lib/ourin-backup.js";
 import { handleAntiTagSW } from "./src/lib/ourin-group-protection.js";
-import { initSholatScheduler } from "./src/lib/ourin-sholat-scheduler.js";
 import { initNotifScheduler } from "./src/lib/ourin-notif-scheduler.js";
-import { initAutoJpmScheduler } from "./src/lib/ourin-auto-jpm.js";
 import { startMemoryMonitor } from "./src/lib/ourin-memory-monitor.js";
 import { startTempCleaner } from "./src/lib/ourin-temp-cleaner.js";
 import { startDailyPruner } from "./src/lib/ourin-data-pruner.js";
@@ -43,11 +41,6 @@ let startOrderPoller;
 try {
   const _mod = await import("./src/lib/ourin-order-poller.js");
   startOrderPoller = _mod.startOrderPoller;
-} catch {}
-let startOtpPoller;
-try {
-  const _mod = await import("./src/lib/ourin-otp-poller.js");
-  startOtpPoller = _mod.startOtpPoller;
 } catch {}
 
 const LOG_NOISE = new Set([
@@ -334,44 +327,10 @@ async function main() {
         startGroupScheduleChecker(sock);
         startSewaChecker(sock);
         initScheduler(config, sock);
-        initAutoJpmScheduler(sock);
-        initSholatScheduler(sock);
         initNotifScheduler(sock);
-        try {
-          const { initSahurCron } =
-            await import("./plugins/religi/autosahur.js");
-          initSahurCron(sock);
-        } catch {}
         try {
           if (startOrderPoller) startOrderPoller(sock);
         } catch {}
-        try {
-          const { startOtpPoller: _startOtp } =
-            await import("./src/lib/ourin-otp-poller.js");
-          _startOtp(sock);
-        } catch {}
-
-        try {
-          const { getAllJadibotSessions, restartJadibotSession } =
-            await import("./src/lib/ourin-jadibot-manager.js");
-          const sessions = getAllJadibotSessions();
-          if (sessions.length > 0) {
-            logger.info("JADIBOT", `Restoring ${sessions.length} session(s)`);
-            for (const session of sessions) {
-              try {
-                await restartJadibotSession(sock, session.id);
-                await new Promise((r) => setTimeout(r, 3000));
-              } catch (e) {
-                logger.error(
-                  "JADIBOT",
-                  `Failed restore ${session.id}: ${e.message}`,
-                );
-              }
-            }
-          }
-        } catch (e) {
-          logger.error("JADIBOT", `Gagal memulihkan: ${e.message}`);
-        }
 
         const devLabel = config.dev?.enabled ? ` ${c.yellow("• dev")}` : "";
         startMemoryMonitor();
