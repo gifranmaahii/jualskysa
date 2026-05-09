@@ -208,22 +208,32 @@ async function startConnection(options = {}) {
     const B = colors.chalk.hex("#0EA5E9").bold;
     const G = colors.chalk.hex("#10B981");
     const Y = colors.chalk.hex("#F59E0B");
+    const W = colors.chalk.white;
     console.log("");
-    console.log(B("  ┌─────────────────────────────────────┐"));
-    console.log(B("  │") + colors.chalk.white.bold("       🛒  SKYSTORE LOGIN SETUP        ") + B("│"));
-    console.log(B("  ├─────────────────────────────────────┤"));
-    console.log(B("  │") + G("  1  ") + colors.chalk.white("Scan QR Code                      ") + B("│"));
-    console.log(B("  │") + Y("  2  ") + colors.chalk.white("Pairing Code (masukkan nomor HP)   ") + B("│"));
-    console.log(B("  └─────────────────────────────────────┘"));
+    console.log(B("  ╔═══════════════════════════════════════╗"));
+    console.log(B("  ║") + W.bold("         🛒  SKYSTORE BOT LOGIN          ") + B("║"));
+    console.log(B("  ╠═══════════════════════════════════════╣"));
+    console.log(B("  ║") + G("  [1]") + W("  Scan QR Code                      ") + B("║"));
+    console.log(B("  ║") + Y("  [2]") + W("  Pairing Code (masukkan nomor HP)  ") + B("║"));
+    console.log(B("  ╚═══════════════════════════════════════╝"));
     console.log("");
-    const choice = await askQuestion(Y.bold("  ➤ Pilih metode login [1/2]: "));
+    const choice = await askQuestion(Y.bold("  ➤ Pilih metode login (1/2): "));
     if (choice.trim() === "2") {
       usePairingCode = true;
       console.log("");
-      pairingNumber = await askQuestion(G.bold("  ➤ Nomor WhatsApp (cth: 6281234567890): "));
-      pairingNumber = pairingNumber.replace(/[^0-9]/g, "");
-      console.log("");
+      const num = await askQuestion(G.bold("  ➤ Nomor WhatsApp (contoh: 628123456789): "));
+      pairingNumber = num.replace(/[^0-9]/g, "");
+      if (!pairingNumber) {
+        console.log(colors.chalk.red("  ❌ Nomor tidak valid! Mengalihkan ke QR Code..."));
+        usePairingCode = false;
+      } else {
+        console.log("");
+      }
+    } else {
+      console.log(G("  📱 Menyiapkan QR Code...\n"));
     }
+  } else {
+    colors.logger.info("session", "Sesi ditemukan, melanjutkan login otomatis...");
   }
 
   const sock = makeWASocket({
@@ -272,40 +282,69 @@ async function startConnection(options = {}) {
   sock.ev.on("creds.update", saveCreds);
 
   if (usePairingCode && pairingNumber) {
-    colors.logger.info("login", "Metode: Pairing Code — menunggu koneksi server...");
-    const waitAndPair = async () => {
-      for (let attempt = 1; attempt <= 5; attempt++) {
-        await new Promise((r) => setTimeout(r, 5000));
+    const doPairing = async () => {
+      const B = colors.chalk.hex("#0EA5E9").bold;
+      const Y = colors.chalk.hex("#F59E0B").bold;
+      const G = colors.chalk.hex("#10B981");
+      const D = colors.chalk.hex("#6B7280");
+
+      console.log(D("  ⏳ Menunggu koneksi WebSocket ke server WhatsApp..."));
+
+      let wsReady = false;
+      for (let i = 0; i < 10; i++) {
+        await new Promise((r) => setTimeout(r, 1000));
+        if (sock.ws?.readyState === 1) {
+          wsReady = true;
+          console.log(G("  ✅ WebSocket terhubung!"));
+          break;
+        }
+        console.log(D(`  ⏳ Menunggu... (${i + 1}/10)`));
+      }
+
+      if (!wsReady) {
+        colors.logger.error("pairing", "WebSocket gagal terhubung. Coba jalankan ulang bot.");
+        return;
+      }
+
+      console.log(D("  ⏳ Menunggu handshake selesai (2 detik)..."));
+      await new Promise((r) => setTimeout(r, 2000));
+
+      const requestPairing = async (attempt = 1) => {
         if (pairingDone || sock.authState.creds.registered) return;
         try {
+          console.log(D(`  ⏳ Meminta kode pairing... (percobaan ke-${attempt})`));
           const code = await sock.requestPairingCode(pairingNumber);
+          const formatted = code?.match(/.{1,4}/g)?.join("-") || code;
           pairingDone = true;
-          const B = colors.chalk.hex("#0EA5E9").bold;
-          const Y = colors.chalk.hex("#F59E0B").bold;
-          const D = colors.chalk.hex("#6B7280");
           console.log("");
-          console.log(B("  ┌─────────────────────────────────────┐"));
-          console.log(B("  │") + colors.chalk.white.bold("      🔑  SKYSTORE PAIRING CODE         ") + B("│"));
-          console.log(B("  ├─────────────────────────────────────┤"));
-          console.log(B("  │") + "                                      " + B("│"));
-          console.log(B("  │") + "         " + Y.underline(code) + "          " + B("│"));
-          console.log(B("  │") + "                                      " + B("│"));
-          console.log(B("  ├─────────────────────────────────────┤"));
-          console.log(B("  │") + D("  WA > Setelan > Perangkat Tertaut  ") + "    " + B("│"));
-          console.log(B("  │") + D("  > Tautkan Perangkat > Masukkan Kode") + "   " + B("│"));
-          console.log(B("  └─────────────────────────────────────┘"));
+          console.log(B("  ╔═══════════════════════════════════════╗"));
+          console.log(B("  ║") + colors.chalk.white.bold("        🔑  SKYSTORE PAIRING CODE         ") + B("║"));
+          console.log(B("  ╠═══════════════════════════════════════╣"));
+          console.log(B("  ║") + "                                       " + B("║"));
+          console.log(B("  ║") + "        " + Y.underline(formatted) + "         " + B("║"));
+          console.log(B("  ║") + "                                       " + B("║"));
+          console.log(B("  ╠═══════════════════════════════════════╣"));
+          console.log(B("  ║") + D("  📞 Nomor: ") + colors.chalk.white(pairingNumber) + "                    " + B("║"));
+          console.log(B("  ║") + D("  💡 WA > Setelan > Perangkat Tertaut   ") + B("║"));
+          console.log(B("  ║") + D("     > Tautkan dengan nomor telepon     ") + B("║"));
+          console.log(B("  ║") + D("  ⏳ Kode berlaku ±2 menit              ") + B("║"));
+          console.log(B("  ╚═══════════════════════════════════════╝"));
           console.log("");
-          return;
         } catch (err) {
-          if (attempt < 5) {
-            colors.logger.warn("pairing", `percobaan ${attempt}/5 gagal: ${err.message}, coba lagi...`);
+          colors.logger.error("pairing", `gagal: ${err.message}`);
+          if (attempt < 3) {
+            const delay = attempt * 5000;
+            colors.logger.warn("pairing", `mencoba ulang dalam ${delay / 1000} detik...`);
+            setTimeout(() => requestPairing(attempt + 1), delay);
           } else {
-            colors.logger.error("pairing", `gagal setelah 5 percobaan: ${err.message}`);
+            colors.logger.error("pairing", "gagal 3x. Coba jalankan ulang bot: npm start");
           }
         }
-      }
+      };
+
+      await requestPairing();
     };
-    waitAndPair();
+    doPairing();
   }
 
   sock.ev.on("connection.update", async (u) => {
