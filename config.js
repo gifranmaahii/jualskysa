@@ -4,12 +4,12 @@ import * as ownerPremiumDb from "./src/lib/ourin-premium-db.js";
 //  utamakan baca object config sampai bawah
 const config = {
   info: {
-    website: "https://sc.ourin.my.id",
-    grupwa: "https://chat.whatsapp.com/C8pzXYhMJMyKbHMdehT9Yt",
+    website: "",
+    grupwa: "",
   },
 
   owner: {
-    name: "Zann", // Nama owner
+    name: "Owner", // Nama owner
     number: ["628xxxxxx"], // Format: 628xxx (tanpa + atau 0)
   },
 
@@ -19,9 +19,9 @@ const config = {
   },
 
   bot: {
-    name: "𝗢𝗨𝗥𝗜𝗡 𝗔𝗜", // Nama bot
-    version: "2.4.5", // Versi bot
-    developer: "Zann", // Nama developer
+    name: "🛒 SkyStore", // Nama bot
+    version: "1.0.0", // Versi bot
+    developer: "Owner", // Nama developer
   },
 
   mode: "public",

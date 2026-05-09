@@ -204,34 +204,34 @@ async function startConnection(options = {}) {
   if (!state.creds.registered) {
     console.log("");
     console.log(
-      colors.chalk.cyan.bold("╔══════════════════════════════════╗"),
+      colors.chalk.hex("#0EA5E9").bold("  ┌─────────────────────────────────────┐"),
     );
     console.log(
-      colors.chalk.cyan.bold("║    PILIH METODE LOGIN BOT WA     ║"),
+      colors.chalk.hex("#0EA5E9").bold("  │") + colors.chalk.white.bold("       🛒  SKYSTORE LOGIN SETUP        ") + colors.chalk.hex("#0EA5E9").bold("│"),
     );
     console.log(
-      colors.chalk.cyan.bold("╠══════════════════════════════════╣"),
+      colors.chalk.hex("#0EA5E9").bold("  ├─────────────────────────────────────┤"),
     );
     console.log(
-      colors.chalk.cyan.bold("║  1️⃣  Scan QR Code                ║"),
+      colors.chalk.hex("#0EA5E9").bold("  │") + colors.chalk.hex("#10B981")("  1  ") + colors.chalk.white("Scan QR Code                      ") + colors.chalk.hex("#0EA5E9").bold("│"),
     );
     console.log(
-      colors.chalk.cyan.bold("║  2️⃣  Pairing Code (nomor HP)     ║"),
+      colors.chalk.hex("#0EA5E9").bold("  │") + colors.chalk.hex("#F59E0B")("  2  ") + colors.chalk.white("Pairing Code (masukkan nomor HP)   ") + colors.chalk.hex("#0EA5E9").bold("│"),
     );
     console.log(
-      colors.chalk.cyan.bold("╚══════════════════════════════════╝"),
+      colors.chalk.hex("#0EA5E9").bold("  └─────────────────────────────────────┘"),
     );
     console.log("");
     const loginChoice = await askQuestion(
-      colors.chalk.yellow("Pilih metode login [1/2]: "),
+      colors.chalk.hex("#F59E0B").bold("  ➤ Pilih metode login [1/2]: "),
     );
     if (loginChoice.trim() === "2") {
       usePairingCode = true;
       if (!pairingNumber) {
         console.log("");
         pairingNumber = await askQuestion(
-          colors.chalk.cyan(
-            "📱 Masukkan nomor WhatsApp (contoh: 6281234567890): ",
+          colors.chalk.hex("#10B981").bold(
+            "  ➤ Nomor WhatsApp (cth: 6281234567890): ",
           ),
         );
       }
@@ -305,21 +305,18 @@ async function startConnection(options = {}) {
       await new Promise((resolve) => setTimeout(resolve, 3000));
       const code = await sock.requestPairingCode(phoneNumber, "OURINNAI");
       console.log("");
-      console.log(
-        colors.createBanner(
-          [
-            "",
-            "   PAIRING CODE   ",
-            "",
-            `   ${colors.chalk.bold(colors.chalk.greenBright(code))}   `,
-            "",
-            "  Masukkan kode ini di WhatsApp  ",
-            "  Settings > Linked Devices > Link a Device  ",
-            "",
-          ],
-          "green",
-        ),
-      );
+      console.log("");
+      console.log(colors.chalk.hex("#0EA5E9").bold("  ┌─────────────────────────────────────┐"));
+      console.log(colors.chalk.hex("#0EA5E9").bold("  │") + colors.chalk.white.bold("      🔑  SKYSTORE PAIRING CODE         ") + colors.chalk.hex("#0EA5E9").bold("│"));
+      console.log(colors.chalk.hex("#0EA5E9").bold("  ├─────────────────────────────────────┤"));
+      console.log(colors.chalk.hex("#0EA5E9").bold("  │") + "                                      " + colors.chalk.hex("#0EA5E9").bold("│"));
+      console.log(colors.chalk.hex("#0EA5E9").bold("  │") + "       " + colors.chalk.hex("#F59E0B").bold.underline(code.split("").join(" ")) + "        " + colors.chalk.hex("#0EA5E9").bold("│"));
+      console.log(colors.chalk.hex("#0EA5E9").bold("  │") + "                                      " + colors.chalk.hex("#0EA5E9").bold("│"));
+      console.log(colors.chalk.hex("#0EA5E9").bold("  ├─────────────────────────────────────┤"));
+      console.log(colors.chalk.hex("#0EA5E9").bold("  │") + colors.chalk.hex("#6B7280")("  WA > Setelan > Perangkat Tertaut  ") + "    " + colors.chalk.hex("#0EA5E9").bold("│"));
+      console.log(colors.chalk.hex("#0EA5E9").bold("  │") + colors.chalk.hex("#6B7280")("  > Tautkan Perangkat > Pairing Code") + "    " + colors.chalk.hex("#0EA5E9").bold("│"));
+      console.log(colors.chalk.hex("#0EA5E9").bold("  └─────────────────────────────────────┘"));
+      console.log("");
       console.log("");
     } catch (error) {
       colors.logger.error("pairing", `gagal: ${error.message}`);

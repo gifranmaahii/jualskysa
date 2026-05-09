@@ -3,11 +3,11 @@ import gradient from 'gradient-string'
 import figlet from 'figlet'
 import * as timeHelper from './ourin-time.js'
 import { getCachedJid, isLidConverted } from './ourin-lid.js'
-const g = gradient(["#A855F7", "#06B6D4", "#10B981"])
+const g = gradient(["#0EA5E9", "#10B981", "#F59E0B"])
 
 const k = {
-  p: chalk.hex("#7C3AED"),
-  s: chalk.hex("#06B6D4"),
+  p: chalk.hex("#0EA5E9"),
+  s: chalk.hex("#10B981"),
   a: chalk.hex("#F59E0B"),
   t: chalk.white,
   d: chalk.hex("#6B7280"),
@@ -18,8 +18,8 @@ const k = {
   in: chalk.hex("#60A5FA"),
   db: chalk.hex("#525252"),
   bd: chalk.hex("#374151"),
-  tg: chalk.hex("#C084FC"),
-  cy: chalk.hex("#22D3EE"),
+  tg: chalk.hex("#34D399"),
+  cy: chalk.hex("#0EA5E9"),
   pk: chalk.hex("#F472B6"),
   or: chalk.hex("#FB923C"),
   lm: chalk.hex("#A3E635"),
@@ -149,18 +149,18 @@ function logPlugin(name, category) {
 }
 
 function logConnection(status, info = "") {
-  const w = 44
+  const w = 46
   const label =
     status === "connected"
-      ? chalk.hex("#10B981").bold("● Connected")
+      ? chalk.hex("#10B981").bold("● TERHUBUNG")
       : status === "connecting"
-        ? chalk.hex("#F59E0B").bold("◐ Connecting")
-        : chalk.hex("#EF4444").bold("○ Disconnected")
+        ? chalk.hex("#F59E0B").bold("◐ MENGHUBUNGKAN")
+        : chalk.hex("#EF4444").bold("○ TERPUTUS")
 
   console.log("")
-  console.log(k.bd("═".repeat(w)))
-  console.log(`  ${label} ${k.d("—")} ${k.t(info)}`)
-  console.log(k.bd("═".repeat(w)))
+  console.log(chalk.hex("#0EA5E9")("  " + "━".repeat(w)))
+  console.log(`  ${label}  ${k.d("│")} ${chalk.hex("#10B981")("🛒 SkyStore")} ${k.d("│")} ${k.t(info)}`)
+  console.log(chalk.hex("#0EA5E9")("  " + "━".repeat(w)))
 }
 
 function logErrorBox(title, message) {
@@ -177,14 +177,18 @@ function printBanner(mini = false) {
     return
   }
   console.log("")
-  const ascii = figlet.textSync("OURIN", { font: "ANSI Shadow", horizontalLayout: "fitted" })
+  const ascii = figlet.textSync("SkyStore", { font: "Small", horizontalLayout: "fitted" })
   console.log(g(ascii))
+  console.log(chalk.hex("#0EA5E9")("  ─────────────────────────────────────────"))
+  console.log(chalk.hex("#10B981")("  🛒  Bot WhatsApp Jualan Otomatis"))
+  console.log(chalk.hex("#0EA5E9")("  ─────────────────────────────────────────"))
   console.log("")
 }
 
 function printStartup(info = {}) {
-  const { name, version, mode } = info
-  console.log(`  ${k.t(name)} ${k.d("v" + version)} ${k.d("·")} ${k.t(mode)}`)
+  const { name, version, developer, mode } = info
+  console.log(`  ${k.cy("▸")} ${k.t(name)} ${k.d("v" + version)} ${k.d("·")} ${k.s(mode.toUpperCase())}`)
+  console.log(`  ${k.cy("▸")} ${k.d("Dev:")} ${k.t(developer || "Owner")} ${k.d("·")} ${k.d("WA Bot Jualan")}`)
   console.log("")
 }
 
@@ -213,7 +217,7 @@ const c = {
   magenta: chalk.magenta,
 }
 
-function divider() { console.log(k.bd("─".repeat(46))) }
+function divider() { console.log(chalk.hex("#0EA5E9")("  " + "─".repeat(46))) }
 
 function createBanner(lines, color = "green") {
   const maxLen = Math.max(...lines.map((l) => l.length))
