@@ -281,51 +281,38 @@ async function startConnection(options = {}) {
   connectionState.sock = sock;
   extendSocket(sock);
 
-  if (usePairingCode && !sock.authState.creds.registered) {
-    let phoneNumber = pairingNumber;
-
-    if (!phoneNumber || phoneNumber === "") {
-      console.log("");
-      colors.logger.warn("pairing", "nomor pairing belum diatur di config");
-      console.log("");
-      phoneNumber = await askQuestion(
-        colors.chalk.cyan(
-          "📱 Masukkan nomor WhatsApp (contoh: 6281234567890): ",
-        ),
-      );
-    }
-
-    phoneNumber = phoneNumber.replace(/[^0-9]/g, "");
-    colors.logger.info("login", "Metode: Pairing Code");
-
-    colors.logger.info("pairing", `meminta kode untuk ${phoneNumber}`);
-
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-      const code = await sock.requestPairingCode(phoneNumber, "OURINNAI");
-      console.log("");
-      console.log("");
-      console.log(colors.chalk.hex("#0EA5E9").bold("  ┌─────────────────────────────────────┐"));
-      console.log(colors.chalk.hex("#0EA5E9").bold("  │") + colors.chalk.white.bold("      🔑  SKYSTORE PAIRING CODE         ") + colors.chalk.hex("#0EA5E9").bold("│"));
-      console.log(colors.chalk.hex("#0EA5E9").bold("  ├─────────────────────────────────────┤"));
-      console.log(colors.chalk.hex("#0EA5E9").bold("  │") + "                                      " + colors.chalk.hex("#0EA5E9").bold("│"));
-      console.log(colors.chalk.hex("#0EA5E9").bold("  │") + "       " + colors.chalk.hex("#F59E0B").bold.underline(code.split("").join(" ")) + "        " + colors.chalk.hex("#0EA5E9").bold("│"));
-      console.log(colors.chalk.hex("#0EA5E9").bold("  │") + "                                      " + colors.chalk.hex("#0EA5E9").bold("│"));
-      console.log(colors.chalk.hex("#0EA5E9").bold("  ├─────────────────────────────────────┤"));
-      console.log(colors.chalk.hex("#0EA5E9").bold("  │") + colors.chalk.hex("#6B7280")("  WA > Setelan > Perangkat Tertaut  ") + "    " + colors.chalk.hex("#0EA5E9").bold("│"));
-      console.log(colors.chalk.hex("#0EA5E9").bold("  │") + colors.chalk.hex("#6B7280")("  > Tautkan Perangkat > Pairing Code") + "    " + colors.chalk.hex("#0EA5E9").bold("│"));
-      console.log(colors.chalk.hex("#0EA5E9").bold("  └─────────────────────────────────────┘"));
-      console.log("");
-      console.log("");
-    } catch (error) {
-      colors.logger.error("pairing", `gagal: ${error.message}`);
-    }
-  }
+  let pairingCodeRequested = false;
 
   sock.ev.on("creds.update", saveCreds);
 
   sock.ev.on("connection.update", async (u) => {
     const { connection: c, lastDisconnect: d, qr: q } = u;
+
+    if (usePairingCode && !pairingCodeRequested && !sock.authState.creds.registered) {
+      pairingCodeRequested = true;
+      const phoneNumber = pairingNumber.replace(/[^0-9]/g, "");
+      colors.logger.info("login", "Metode: Pairing Code");
+      colors.logger.info("pairing", `meminta kode untuk ${phoneNumber}`);
+      try {
+        await new Promise((r) => setTimeout(r, 3000));
+        const code = await sock.requestPairingCode(phoneNumber, "SKYSTR");
+        console.log("");
+        console.log(colors.chalk.hex("#0EA5E9").bold("  ┌─────────────────────────────────────┐"));
+        console.log(colors.chalk.hex("#0EA5E9").bold("  │") + colors.chalk.white.bold("      🔑  SKYSTORE PAIRING CODE         ") + colors.chalk.hex("#0EA5E9").bold("│"));
+        console.log(colors.chalk.hex("#0EA5E9").bold("  ├─────────────────────────────────────┤"));
+        console.log(colors.chalk.hex("#0EA5E9").bold("  │") + "                                      " + colors.chalk.hex("#0EA5E9").bold("│"));
+        console.log(colors.chalk.hex("#0EA5E9").bold("  │") + "       " + colors.chalk.hex("#F59E0B").bold.underline(code.split("").join(" ")) + "        " + colors.chalk.hex("#0EA5E9").bold("│"));
+        console.log(colors.chalk.hex("#0EA5E9").bold("  │") + "                                      " + colors.chalk.hex("#0EA5E9").bold("│"));
+        console.log(colors.chalk.hex("#0EA5E9").bold("  ├─────────────────────────────────────┤"));
+        console.log(colors.chalk.hex("#0EA5E9").bold("  │") + colors.chalk.hex("#6B7280")("  WA > Setelan > Perangkat Tertaut  ") + "    " + colors.chalk.hex("#0EA5E9").bold("│"));
+        console.log(colors.chalk.hex("#0EA5E9").bold("  │") + colors.chalk.hex("#6B7280")("  > Tautkan Perangkat > Masukkan Kode") + "   " + colors.chalk.hex("#0EA5E9").bold("│"));
+        console.log(colors.chalk.hex("#0EA5E9").bold("  └─────────────────────────────────────┘"));
+        console.log("");
+      } catch (error) {
+        pairingCodeRequested = false;
+        colors.logger.error("pairing", `gagal: ${error.message}`);
+      }
+    }
 
     if (q && !usePairingCode) {
       colors.logger.info("login", "Metode: QR Code");
