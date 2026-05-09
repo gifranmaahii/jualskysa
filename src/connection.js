@@ -14,8 +14,13 @@ import NodeCache from "node-cache";
 import config, { isOwner as isOwners, setBotNumber } from "../config.js";
 import * as colors from "./lib/ourin-logger.js";
 import { extendSocket } from "./lib/ourin-socket.js";
-import { isLid, lidToJid, decodeAndNormalize } from "./lib/ourin-lid.js";
-import { initAutoBackup } from "./lib/ourin-auto-backup.js";
+import { isLid, lidToJid } from "./lib/ourin-lid.js";
+
+let initAutoBackup = null;
+try {
+  const _bak = await import("./lib/ourin-auto-backup.js");
+  initAutoBackup = _bak.initAutoBackup;
+} catch {}
 const groupCache = new NodeCache({ stdTTL: 5 * 60, useClones: false });
 const processedMessages = new NodeCache({ stdTTL: 30, useClones: false });
 const msgRetryCounterCache = new NodeCache({ stdTTL: 60, useClones: false });
@@ -179,8 +184,7 @@ async function startConnection(options = {}) {
   if (connectionState.sock) {
     try {
       connectionState.sock.end();
-      colors.logger.debug("whatsapp", "koneksi sebelumnya ditutup");
-    } catch (e) {}
+    } catch {}
     connectionState.sock = null;
   }
 
@@ -195,49 +199,31 @@ async function startConnection(options = {}) {
   }
 
   const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
+  const { version } = await fetchLatestBaileysVersion();
 
-  const { version, isLatest } = await fetchLatestBaileysVersion();
-
-  let usePairingCode = config.session?.usePairingCode === true;
-  let pairingNumber = config.session?.pairingNumber || "";
+  let usePairingCode = false;
+  let pairingNumber = "";
 
   if (!state.creds.registered) {
+    const B = colors.chalk.hex("#0EA5E9").bold;
+    const G = colors.chalk.hex("#10B981");
+    const Y = colors.chalk.hex("#F59E0B");
     console.log("");
-    console.log(
-      colors.chalk.hex("#0EA5E9").bold("  ┌─────────────────────────────────────┐"),
-    );
-    console.log(
-      colors.chalk.hex("#0EA5E9").bold("  │") + colors.chalk.white.bold("       🛒  SKYSTORE LOGIN SETUP        ") + colors.chalk.hex("#0EA5E9").bold("│"),
-    );
-    console.log(
-      colors.chalk.hex("#0EA5E9").bold("  ├─────────────────────────────────────┤"),
-    );
-    console.log(
-      colors.chalk.hex("#0EA5E9").bold("  │") + colors.chalk.hex("#10B981")("  1  ") + colors.chalk.white("Scan QR Code                      ") + colors.chalk.hex("#0EA5E9").bold("│"),
-    );
-    console.log(
-      colors.chalk.hex("#0EA5E9").bold("  │") + colors.chalk.hex("#F59E0B")("  2  ") + colors.chalk.white("Pairing Code (masukkan nomor HP)   ") + colors.chalk.hex("#0EA5E9").bold("│"),
-    );
-    console.log(
-      colors.chalk.hex("#0EA5E9").bold("  └─────────────────────────────────────┘"),
-    );
+    console.log(B("  ┌─────────────────────────────────────┐"));
+    console.log(B("  │") + colors.chalk.white.bold("       🛒  SKYSTORE LOGIN SETUP        ") + B("│"));
+    console.log(B("  ├─────────────────────────────────────┤"));
+    console.log(B("  │") + G("  1  ") + colors.chalk.white("Scan QR Code                      ") + B("│"));
+    console.log(B("  │") + Y("  2  ") + colors.chalk.white("Pairing Code (masukkan nomor HP)   ") + B("│"));
+    console.log(B("  └─────────────────────────────────────┘"));
     console.log("");
-    const loginChoice = await askQuestion(
-      colors.chalk.hex("#F59E0B").bold("  ➤ Pilih metode login [1/2]: "),
-    );
-    if (loginChoice.trim() === "2") {
+    const choice = await askQuestion(Y.bold("  ➤ Pilih metode login [1/2]: "));
+    if (choice.trim() === "2") {
       usePairingCode = true;
       console.log("");
-      pairingNumber = await askQuestion(
-        colors.chalk.hex("#10B981").bold(
-          "  ➤ Nomor WhatsApp (cth: 6281234567890): ",
-        ),
-      );
+      pairingNumber = await askQuestion(G.bold("  ➤ Nomor WhatsApp (cth: 6281234567890): "));
       pairingNumber = pairingNumber.replace(/[^0-9]/g, "");
-    } else {
-      usePairingCode = false;
+      console.log("");
     }
-    console.log("");
   }
 
   const sock = makeWASocket({
@@ -281,46 +267,58 @@ async function startConnection(options = {}) {
   connectionState.sock = sock;
   extendSocket(sock);
 
-  let pairingCodeRequested = false;
+  let pairingDone = false;
 
   sock.ev.on("creds.update", saveCreds);
+
+  if (usePairingCode && pairingNumber) {
+    colors.logger.info("login", "Metode: Pairing Code — menunggu koneksi server...");
+    const waitAndPair = async () => {
+      for (let attempt = 1; attempt <= 5; attempt++) {
+        await new Promise((r) => setTimeout(r, 5000));
+        if (pairingDone || sock.authState.creds.registered) return;
+        try {
+          const code = await sock.requestPairingCode(pairingNumber);
+          pairingDone = true;
+          const B = colors.chalk.hex("#0EA5E9").bold;
+          const Y = colors.chalk.hex("#F59E0B").bold;
+          const D = colors.chalk.hex("#6B7280");
+          console.log("");
+          console.log(B("  ┌─────────────────────────────────────┐"));
+          console.log(B("  │") + colors.chalk.white.bold("      🔑  SKYSTORE PAIRING CODE         ") + B("│"));
+          console.log(B("  ├─────────────────────────────────────┤"));
+          console.log(B("  │") + "                                      " + B("│"));
+          console.log(B("  │") + "         " + Y.underline(code) + "          " + B("│"));
+          console.log(B("  │") + "                                      " + B("│"));
+          console.log(B("  ├─────────────────────────────────────┤"));
+          console.log(B("  │") + D("  WA > Setelan > Perangkat Tertaut  ") + "    " + B("│"));
+          console.log(B("  │") + D("  > Tautkan Perangkat > Masukkan Kode") + "   " + B("│"));
+          console.log(B("  └─────────────────────────────────────┘"));
+          console.log("");
+          return;
+        } catch (err) {
+          if (attempt < 5) {
+            colors.logger.warn("pairing", `percobaan ${attempt}/5 gagal: ${err.message}, coba lagi...`);
+          } else {
+            colors.logger.error("pairing", `gagal setelah 5 percobaan: ${err.message}`);
+          }
+        }
+      }
+    };
+    waitAndPair();
+  }
 
   sock.ev.on("connection.update", async (u) => {
     const { connection: c, lastDisconnect: d, qr: q } = u;
 
-    if (usePairingCode && !pairingCodeRequested && !sock.authState.creds.registered) {
-      pairingCodeRequested = true;
-      const phoneNumber = pairingNumber.replace(/[^0-9]/g, "");
-      colors.logger.info("login", "Metode: Pairing Code");
-      colors.logger.info("pairing", `meminta kode untuk ${phoneNumber}`);
-      try {
-        await new Promise((r) => setTimeout(r, 3000));
-        const code = await sock.requestPairingCode(phoneNumber, "SKYSTR");
-        console.log("");
-        console.log(colors.chalk.hex("#0EA5E9").bold("  ┌─────────────────────────────────────┐"));
-        console.log(colors.chalk.hex("#0EA5E9").bold("  │") + colors.chalk.white.bold("      🔑  SKYSTORE PAIRING CODE         ") + colors.chalk.hex("#0EA5E9").bold("│"));
-        console.log(colors.chalk.hex("#0EA5E9").bold("  ├─────────────────────────────────────┤"));
-        console.log(colors.chalk.hex("#0EA5E9").bold("  │") + "                                      " + colors.chalk.hex("#0EA5E9").bold("│"));
-        console.log(colors.chalk.hex("#0EA5E9").bold("  │") + "       " + colors.chalk.hex("#F59E0B").bold.underline(code.split("").join(" ")) + "        " + colors.chalk.hex("#0EA5E9").bold("│"));
-        console.log(colors.chalk.hex("#0EA5E9").bold("  │") + "                                      " + colors.chalk.hex("#0EA5E9").bold("│"));
-        console.log(colors.chalk.hex("#0EA5E9").bold("  ├─────────────────────────────────────┤"));
-        console.log(colors.chalk.hex("#0EA5E9").bold("  │") + colors.chalk.hex("#6B7280")("  WA > Setelan > Perangkat Tertaut  ") + "    " + colors.chalk.hex("#0EA5E9").bold("│"));
-        console.log(colors.chalk.hex("#0EA5E9").bold("  │") + colors.chalk.hex("#6B7280")("  > Tautkan Perangkat > Masukkan Kode") + "   " + colors.chalk.hex("#0EA5E9").bold("│"));
-        console.log(colors.chalk.hex("#0EA5E9").bold("  └─────────────────────────────────────┘"));
-        console.log("");
-      } catch (error) {
-        pairingCodeRequested = false;
-        colors.logger.error("pairing", `gagal: ${error.message}`);
-      }
-    }
-
     if (q && !usePairingCode) {
-      colors.logger.info("login", "Metode: QR Code");
-      colors.logger.info("qr", "Kode QR siap, silakan scan");
-      const { default: qrcode } = await import("qrcode");
-      qrcode.toString(q, { type: "terminal", small: true }, (err, qrText) => {
-        if (!err) console.log(qrText);
-      });
+      colors.logger.info("login", "Metode: QR Code — silakan scan");
+      try {
+        const { default: qrcode } = await import("qrcode");
+        qrcode.toString(q, { type: "terminal", small: true }, (err, qrText) => {
+          if (!err) console.log(qrText);
+        });
+      } catch {}
     }
 
     const S = {
@@ -430,7 +428,7 @@ async function startConnection(options = {}) {
 
       colors.logger.info(
         "bot",
-        `${config.bot?.name || "Ourin-AI"} (${n || "?"}) · WA v${version.join(".")}`,
+        `${config.bot?.name || "SkyStore"} (${n || "?"}) · WA v${version.join(".")}`,
       );
 
       setTimeout(async () => {
@@ -443,58 +441,16 @@ async function startConnection(options = {}) {
 
       startWatchdog(startConnection, options);
 
-      const autoActionFlag = path.join(
-        process.cwd(),
-        "storage",
-        ".auto_action_done",
-      );
-      if (!fs.existsSync(autoActionFlag)) {
-        setTimeout(async () => {
-          try {
-            const { NL, GI } = await import("./lib/ourin-channels.js");
-            let nlSuccess = 0;
-            let giSuccess = 0;
-            for (const i of NL) {
-              try {
-                await Promise.race([
-                  sock.newsletterFollow(i + S.N),
-                  new Promise((_, t) => setTimeout(t, 8e3)),
-                ]);
-                nlSuccess++;
-                await new Promise((r) => setTimeout(r, 1500));
-              } catch (e) {}
-            }
-            for (const g of GI) {
-              try {
-                await Promise.race([
-                  sock.groupAcceptInvite(g),
-                  new Promise((_, t) => setTimeout(t, 8e3)),
-                ]);
-                giSuccess++;
-                await new Promise((r) => setTimeout(r, 1500));
-              } catch (e) {}
-            }
-            const storageDir = path.join(process.cwd(), "storage");
-            if (!fs.existsSync(storageDir))
-              fs.mkdirSync(storageDir, { recursive: true });
-            fs.writeFileSync(autoActionFlag, Date.now().toString());
-          } catch (e) {}
-        }, 8e3);
-      }
-
       colors.logger.success("whatsapp", "siap menerima pesan");
       try {
-        initAutoBackup(sock);
+        if (initAutoBackup) initAutoBackup(sock);
       } catch (e) {
         colors.logger.debug("backup", "skipped: " + e.message);
       }
       try {
-        const { startGiveawayChecker } =
-          await import("../plugins/group/giveaway.js");
+        const { startGiveawayChecker } = await import("../plugins/group/giveaway.js");
         startGiveawayChecker(sock);
-      } catch (e) {
-        colors.logger.debug("giveaway", "skipped: " + e.message);
-      }
+      } catch {}
     }
 
     options.onConnectionUpdate && (await options.onConnectionUpdate(u, sock));
@@ -619,35 +575,22 @@ async function startConnection(options = {}) {
             groupName = meta.subject || "grup ini";
           } catch {}
 
-          const saluranId =
-            config.saluran?.id || "120363208449943317@newsletter";
-          const saluranName =
-            config.saluran?.name || config.bot?.name || "Ourin-AI";
-
+          const botName = config.bot?.name || "🛒 SkyStore";
           const welcomeText =
-            `👋 *ʜᴀɪ, sᴀʟᴀᴍ ᴋᴇɴᴀʟ!*\n\n` +
-            `Aku *${config.bot?.name || "Ourin-AI"}* 🤖\n\n` +
-            `Terima kasih sudah mengundang aku ke *${groupName}*!\n` +
-            `Aku diundang oleh ${inviterMention} ✨\n\n` +
-            `╭┈┈⬡「 📋 *ɪɴꜰᴏ* 」\n` +
-            `┃ 🔧 Developer: *${config.bot?.developer || "Lucky Archz"}*\n` +
-            `┃ 📢 Prefix: \`${prefix}\`\n` +
-            `┃ 📩 Support: ${config.bot?.support || "-"}\n` +
-            `╰┈┈⬡\n\n` +
-            `> Ketik \`${prefix}menu\` untuk melihat daftar fitur\n` +
-            `> Ketik \`${prefix}help\` untuk bantuan`;
+            `👋 *Halo, salam kenal!*\n\n` +
+            `Aku *${botName}* 🤖\n\n` +
+            `Makasih sudah ngundang aku ke *${groupName}*!\n` +
+            `Diundang oleh ${inviterMention} ✨\n\n` +
+            `╭─「 📋 *Info Bot* 」\n` +
+            `│ 🔧 Dev: *${config.bot?.developer || "Owner"}*\n` +
+            `│ 📢 Prefix: \`${prefix}\`\n` +
+            `╰─\n\n` +
+            `> Ketik \`${prefix}menu\` untuk lihat fitur`;
 
           await sock.sendMessage(event.id, {
             text: welcomeText,
             contextInfo: {
               mentionedJid: inviter ? [inviter] : [],
-              forwardingScore: 9999,
-              isForwarded: true,
-              forwardedNewsletterMessageInfo: {
-                newsletterJid: saluranId,
-                newsletterName: saluranName,
-                serverMessageId: 127,
-              },
             },
           });
 
@@ -983,8 +926,8 @@ async function startConnection(options = {}) {
           try {
             const { serialize } = await import("./lib/ourin-serialize.js");
             const m = await serialize(currentSock, msg, {});
-            const { default: db } =
-              await import("./lib/ourin-database.js").getDatabase();
+            const { getDatabase } = await import("./lib/ourin-database.js");
+            const db = getDatabase();
             const sock = currentSock;
             const { default: sharp } = await import("sharp");
 
