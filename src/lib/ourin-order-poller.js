@@ -1,6 +1,6 @@
 import { getDatabase } from './ourin-database.js'
 import { logger } from './ourin-logger.js'
-import * as pakasir from './ourin-pakasir.js'
+const pakasir = { isEnabled: () => false, checkTransaction: async () => null }
 let pollerInterval = null
 let sock = null
 

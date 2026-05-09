@@ -1754,7 +1754,7 @@ Klik tombol di bawah untuk menampilkan menu`;
             ctx.restore();
             return canvas.toBuffer("image/jpeg");
           }
-          const levelHelper = await import("../../src/lib/ourin-level.js");
+          const levelHelper = { calculateLevel: (exp) => Math.floor(Math.sqrt(exp / 100)) || 0, expForLevel: (lvl) => lvl * lvl * 100 };
           const profileUser = db.getUser(m.sender) || {};
           const exp = profileUser.exp || 0;
           const level = levelHelper.calculateLevel(exp);
